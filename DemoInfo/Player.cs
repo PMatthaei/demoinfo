@@ -39,9 +39,15 @@ namespace DemoInfo
 
 		public int RoundStartEquipmentValue { get; set; }
 
-		public bool IsDucking { get; set; }
+        public bool IsDucking { get; set; }
 
-		internal Entity Entity;
+        public bool IsWalking { get; set; }
+
+        public bool IsSpotted { get; set; }
+
+        public bool IsScoped { get; set; }
+
+        internal Entity Entity;
 
 		public bool Disconnected { get; set; }
 
@@ -57,6 +63,7 @@ namespace DemoInfo
 		}
 
 		internal Dictionary<int, Equipment> rawWeapons = new Dictionary<int, Equipment>();
+
 		public IEnumerable<Equipment> Weapons { get { return rawWeapons.Values; } }
 
 		public bool IsAlive {

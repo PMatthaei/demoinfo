@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace DemoInfo
+namespace DemoInfoModded
 {
 	public class SoundHandler
 	{

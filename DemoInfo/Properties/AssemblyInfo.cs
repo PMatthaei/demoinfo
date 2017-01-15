@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("DemoInfo")]
-[assembly: AssemblyDescription("This is a C#-Library that makes reading CS:GO-Demos and analyzing them easier.")]
+[assembly: AssemblyTitle("DemoInfoModded")]
+[assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("EHVAG")]
-[assembly: AssemblyProduct("DemoInfo")]
-[assembly: AssemblyCopyright("")]
+[assembly: AssemblyCompany("")]
+[assembly: AssemblyProduct("DemoInfoModded")]
+[assembly: AssemblyCopyright("Copyright ©  2016")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("adb0b537-c842-4082-9588-e5d3c762f541")]
+[assembly: Guid("cc02519d-c604-41da-990a-11a8477c35a4")]
 
 // Version information for an assembly consists of the following four values:
 //

@@ -27,7 +27,7 @@ namespace DemoInfo
 		const int MAXPLAYERS = 64;
 		const int MAXWEAPONS = 64;
 
-
+        int Count;
 		#region Events
 		/// <summary>
 		/// Raised once when the Header of the demo is parsed
@@ -96,11 +96,31 @@ namespace DemoInfo
 		/// </summary>
 		public event EventHandler<TickDoneEventArgs> TickDone;
 
-		/// <summary>
-		/// This is raised when a player is killed. Not that the killer might be dead by the time is raised (e.g. nade-kills),
-		/// also note that the killed player is still alive when this is killed
-		/// </summary>
-		public event EventHandler<PlayerKilledEventArgs> PlayerKilled;
+        /// <summary>
+        /// This is raised when a player jumped. 
+        /// </summary>
+        public event EventHandler<PlayerJumpedEventArgs> PlayerJumped;
+
+        /// <summary>
+        /// This is raised when a player stepped. 
+        /// </summary>
+        public event EventHandler<PlayerSteppedEventArgs> PlayerStepped;
+
+        /// <summary>
+        /// This is raised when a player has taken falldamage. 
+        /// </summary>
+        public event EventHandler<PlayerFallEventArgs> PlayerFallen;
+
+        /// <summary>
+        /// This is raised when a player is being spot. 
+        /// </summary>
+        public event EventHandler<PlayerSpottedEventArgs> PlayerSpotted;
+        
+        /// <summary>
+        /// This is raised when a player is killed. Not that the killer might be dead by the time is raised (e.g. nade-kills),
+        /// also note that the killed player is still alive when this is killed
+        /// </summary>
+        public event EventHandler<PlayerKilledEventArgs> PlayerKilled;
 
 		/// <summary>
 		/// Occurs when a player select a team
@@ -189,10 +209,20 @@ namespace DemoInfo
 		/// </summary>
 		public event EventHandler<BombEventArgs> BombExploded;
 
-		/// <summary>
-		/// Occurs when someone begins to defuse the bomb.
-		/// </summary>
-		public event EventHandler<BombDefuseEventArgs> BombBeginDefuse;
+        /// <summary>
+        /// Occurs when bomb was droppped.
+        /// </summary>
+        public event EventHandler<BombDropEventArgs> BombDropped;
+
+        /// <summary>
+        /// Occurs when bomb was picked up.
+        /// </summary>
+        public event EventHandler<BombPickUpEventArgs> BombPicked;
+
+        /// <summary>
+        /// Occurs when someone begins to defuse the bomb.
+        /// </summary>
+        public event EventHandler<BombDefuseEventArgs> BombBeginDefuse;
 
 		/// <summary>
 		/// Occurs when someone aborts to defuse the bomb.
@@ -205,12 +235,21 @@ namespace DemoInfo
 		/// </summary>
 		public event EventHandler<PlayerHurtEventArgs> PlayerHurt;
 
-
-		/// <summary>
-		/// Occurs when the player object is first updated to reference all the necessary information
-		/// Hint: Event will be raised when any player with a SteamID connects, not just PlayingParticipants
-		/// </summary>
-		public event EventHandler<PlayerBindEventArgs> PlayerBind;
+        /// <summary>
+        /// Weapon is reloaded.
+        /// </summary>
+        public event EventHandler<WeaponReloadEventArgs> WeaponReload;
+        
+        /// <summary>
+        /// Weapon fired but magazine is empty.
+        /// </summary>
+        public event EventHandler<WeaponFiredEmptyEventArgs> WeaponFiredEmpty;
+        
+        /// <summary>
+        /// Occurs when the player object is first updated to reference all the necessary information
+        /// Hint: Event will be raised when any player with a SteamID connects, not just PlayingParticipants
+        /// </summary>
+        public event EventHandler<PlayerBindEventArgs> PlayerBind;
 
 		/// <summary>
 		/// Occurs when a player disconnects from the server. 
@@ -873,11 +912,17 @@ namespace DemoInfo
 			//update some stats
 			playerEntity.FindProperty("m_iHealth").IntRecived += (sender, e) => p.HP = e.Value;
 			playerEntity.FindProperty("m_ArmorValue").IntRecived += (sender, e) => p.Armor = e.Value;
-			playerEntity.FindProperty("m_bHasDefuser").IntRecived += (sender, e) => p.HasDefuseKit = e.Value == 1;
-			playerEntity.FindProperty("m_bHasHelmet").IntRecived += (sender, e) => p.HasHelmet = e.Value == 1;
-			playerEntity.FindProperty("localdata.m_Local.m_bDucking").IntRecived += (sender, e) =>  p.IsDucking = e.Value == 1;
-			playerEntity.FindProperty("m_iAccount").IntRecived += (sender, e) => p.Money = e.Value;
-			playerEntity.FindProperty("m_angEyeAngles[1]").FloatRecived += (sender, e) => p.ViewDirectionX = e.Value;
+
+            playerEntity.FindProperty("m_bHasDefuser").IntRecived += (sender, e) => p.HasDefuseKit = e.Value == 1;
+            playerEntity.FindProperty("m_bHasHelmet").IntRecived += (sender, e) => p.HasHelmet = e.Value == 1;
+            playerEntity.FindProperty("m_bIsWalking").IntRecived += (sender, e) => p.IsWalking = e.Value == 1;
+            playerEntity.FindProperty("m_bIsScoped").IntRecived += (sender, e) => p.IsScoped = e.Value == 1;
+            //playerEntity.FindProperty("localdata.m_Local.m_bDucking").IntRecived += (sender, e) => p.IsDucking = e.Value == 1; // Do both work the same?
+            playerEntity.FindProperty("localdata.m_Local.m_bDucked").IntRecived += (sender, e) => p.IsDucking = e.Value == 1;
+
+            playerEntity.FindProperty("m_iAccount").IntRecived += (sender, e) => p.Money = e.Value;
+
+            playerEntity.FindProperty("m_angEyeAngles[1]").FloatRecived += (sender, e) => p.ViewDirectionX = e.Value;
 			playerEntity.FindProperty("m_angEyeAngles[0]").FloatRecived += (sender, e) => p.ViewDirectionY = e.Value;
 			playerEntity.FindProperty("m_flFlashDuration").FloatRecived += (sender, e) => p.FlashDuration = e.Value;
 
@@ -940,24 +985,48 @@ namespace DemoInfo
 				};
 			}
 
+            var playernames = new List<string>();
+            PlayingParticipants.ToList().ForEach(player => playernames.Add(player.Name));
 
-		}
+            // Fire the event when player spotted variable changed
+            playerEntity.FindProperty("m_bSpotted").IntRecived += (sender, e) => {
+                bool oldspotted = p.IsSpotted;
+                p.IsSpotted = e.Value == 1;
+                if (oldspotted != p.IsSpotted) //Spotted changed
+                {
+                    if (p.IsSpotted && playernames.Contains(p.Name)) // Prevent GOTV player and viewers from dropping the event
+                    {
+                        PlayerSpottedEventArgs spot = new PlayerSpottedEventArgs();
+                        spot.player = p;
+                        RaisePlayerSpotted(spot);
+                    }
+                    /*if (!p.IsSpotted && playernames.Contains(p.Name))
+                    {
+                        Console.WriteLine("Player: " + p.Name + " is now UNspotted");
+                    } */
+                }
+            };
+
+        }
 
 		private void MapEquipment()
 		{				
 			for (int i = 0; i < SendTableParser.ServerClasses.Count; i++) {
 				var sc = SendTableParser.ServerClasses[i];
 
-				if (sc.BaseClasses.Count > 6 && sc.BaseClasses [6].Name == "CWeaponCSBase") { 
+                if (sc.BaseClasses.Count > 6 && sc.BaseClasses[6].Name == "CWeaponCSBase") { 
 					//It is a "weapon" (Gun, C4, ... (...is the cz still a "weapon" after the nerf? (fml, it was buffed again)))
 					if (sc.BaseClasses.Count > 7) {
-						if (sc.BaseClasses [7].Name == "CWeaponCSBaseGun") {
+						if (sc.BaseClasses[7].Name == "CWeaponCSBaseGun") {
 							//it is a ratatatata-weapon.
 							var s = sc.DTName.Substring (9).ToLower ();
-							equipmentMapping.Add (sc, Equipment.MapEquipment (s));
+                            if (s == "") Console.WriteLine(sc.DTName + " LEEER!!");
+                            equipmentMapping.Add (sc, Equipment.MapEquipment (s));
 						} else if (sc.BaseClasses [7].Name == "CBaseCSGrenade") {
-							//"boom"-weapon. 
-							equipmentMapping.Add (sc, Equipment.MapEquipment (sc.DTName.Substring (3).ToLower ()));
+                            //"boom"-weapon. 
+                            var s = sc.DTName.Substring(3).ToLower();
+                            if (s == "") Console.WriteLine(sc.DTName+" LEEER!!");
+                            equipmentMapping.Add (sc, Equipment.MapEquipment (s));
 						} 
 					} else if (sc.Name == "CC4") {
 						//Bomb is neither "ratatata" nor "boom", its "booooooom".
@@ -966,14 +1035,18 @@ namespace DemoInfo
 						//tsching weapon
 						equipmentMapping.Add (sc, EquipmentElement.Knife);
 					} else if (sc.Name == "CWeaponNOVA" || sc.Name == "CWeaponSawedoff" || sc.Name == "CWeaponXM1014") {
-						equipmentMapping.Add (sc, Equipment.MapEquipment (sc.Name.Substring (7).ToLower()));
+                        var s = sc.Name.Substring(7).ToLower();
+                        if (s == "") Console.WriteLine(sc.DTName + " LEEER!!");
+                        equipmentMapping.Add (sc, Equipment.MapEquipment (s));
 					}
 				}
 			}
 
-		}
+            //Console.WriteLine("Equip-Map: " + String.Join("", equipmentMapping));
 
-		private bool AttributeWeapon(int weaponEntityIndex, Player p)
+        }
+
+        private bool AttributeWeapon(int weaponEntityIndex, Player p)
 		{
 			var weapon = weapons[weaponEntityIndex];
 			weapon.Owner = p;
@@ -1180,13 +1253,49 @@ namespace DemoInfo
 				FreezetimeEnded(this, new FreezetimeEndedEventArgs());
 		}
 
-		internal void RaisePlayerKilled(PlayerKilledEventArgs kill)
+        internal void RaisePlayerStepped(PlayerSteppedEventArgs stepper)
+        {
+            if (PlayerStepped != null)
+                PlayerStepped(this, stepper);
+        }
+
+        internal void RaisePlayerFallen(PlayerFallEventArgs fallen)
+        {
+            if (PlayerFallen != null)
+                PlayerFallen(this, fallen);
+        }
+
+        internal void RaisePlayerSpotted(PlayerSpottedEventArgs spotted)
+        {
+            if (PlayerSpotted != null)
+                PlayerSpotted(this, spotted);
+        }
+
+        internal void RaisePlayerJumped(PlayerJumpedEventArgs jumper)
+        {
+            if (PlayerJumped != null)
+                PlayerJumped(this, jumper);
+        }
+
+        internal void RaisePlayerKilled(PlayerKilledEventArgs kill)
 		{
 			if (PlayerKilled != null)
 				PlayerKilled(this, kill);
 		}
 
-		internal void RaisePlayerHurt(PlayerHurtEventArgs hurt)
+        internal void RaiseWeaponReloaded(WeaponReloadEventArgs reload)
+        {
+            if (WeaponReload != null)
+                WeaponReload(this, reload);
+        }
+
+        internal void RaiseWeaponFiredEmpty(WeaponFiredEmptyEventArgs reload)
+        {
+            if (WeaponFiredEmpty != null)
+                WeaponFiredEmpty(this, reload);
+        }
+
+        internal void RaisePlayerHurt(PlayerHurtEventArgs hurt)
 		{
 			if (PlayerHurt != null)
 				PlayerHurt(this, hurt);
@@ -1328,7 +1437,19 @@ namespace DemoInfo
 				BombAbortDefuse(this, args);
 		}
 
-		internal void RaiseSayText(SayTextEventArgs args)
+        internal void RaiseBombDropped(BombDropEventArgs args)
+        {
+            if (BombDropped != null)
+                BombDropped(this, args);
+        }
+
+        internal void RaiseBombPicked(BombPickUpEventArgs args)
+        {
+            if (BombPicked != null)
+                BombPicked(this, args);
+        }
+
+        internal void RaiseSayText(SayTextEventArgs args)
 		{
 			if (SayText != null)
 				SayText(this, args);
@@ -1388,11 +1509,18 @@ namespace DemoInfo
 			this.HeaderParsed = null;
 			this.MatchStarted = null;
 			this.NadeReachedTarget = null;
-			this.PlayerKilled = null;
-			this.RoundStart = null;
+            this.PlayerKilled = null;
+            this.PlayerHurt = null;
+            this.PlayerJumped = null;
+            this.PlayerStepped = null;
+            this.RoundStart = null;
 			this.SmokeNadeEnded = null;
 			this.SmokeNadeStarted = null;
 			this.WeaponFired = null;
+            this.PlayerFallen = null;
+            this.WeaponReload = null;
+            this.PlayerSpotted = null;
+            this.WeaponFiredEmpty = null;
 
 			Players.Clear ();
 		}

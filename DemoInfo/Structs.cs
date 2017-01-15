@@ -80,6 +80,11 @@ namespace DemoInfo
 			}
 		}
 
+        public double Distance(Vector v2)
+        {
+            return Math.Sqrt(Math.Pow(Math.Abs(this.X - v2.X),2) + Math.Pow(Math.Abs(this.Y - v2.Y), 2) + Math.Pow(Math.Abs(this.Z - v2.Z), 2));
+        }
+
 		public double AbsoluteSquared
 		{
 			get 
@@ -229,6 +234,7 @@ namespace DemoInfo
 
 	    // friends identification number
         public int FriendsID { get; set; }
+
 	    // friends name
         public string FriendsName { get; set; } //128
 
